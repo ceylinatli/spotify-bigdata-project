@@ -118,7 +118,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: "kafka:29092" # Docker iç ağı üzerinden bağlan
       KAFKA_TOPIC: "spotify-tracks"
       CSV_PATH: "/data/raw/dataset.csv"
-      MESSAGES_PER_SECOND: "50" # Saniyede gönderilecek mesaj sayısı
+      MESSAGES_PER_SECOND: "500" # Saniyede gönderilecek mesaj sayısı
     volumes:
       - ./data:/data # CSV dosyasına erişim için
     networks:
