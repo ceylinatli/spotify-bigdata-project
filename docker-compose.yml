@@ -99,6 +99,7 @@ services:
     ports:
       - "8889:8888" # Worker Jupyter (8889 portunda)
     volumes:
+      - ./spark/notebooks:/home/jovyan/notebooks # Notebook dosyaları
       - ./data:/home/jovyan/data
       - delta-lake-data:/home/jovyan/delta-lake
     networks:
@@ -126,15 +127,10 @@ services:
 
   #  MLFLOW  — Deney takip sunucusu
   mlflow:
-    image: python:3.10-slim
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
     container_name: mlflow
-    command: >
-      bash -c "pip install mlflow==2.11.0 --quiet &&
-               mlflow server
-               --host 0.0.0.0
-               --port 5000
-               --backend-store-uri /mlflow/mlruns
-               --default-artifact-root /mlflow/artifacts"
     ports:
       - "5000:5000" # MLflow Web UI
     volumes:
