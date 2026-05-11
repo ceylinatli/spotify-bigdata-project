@@ -1,0 +1,13 @@
+# Delta Lake dosyaları git'te tutulmaz
+delta-lake/bronze/
+delta-lake/silver/
+delta-lake/gold/
+
+# Mac sistem dosyaları
+.DS_Store
+
+# Jupyter checkpoint dosyaları
+.ipynb_checkpoints/
+
+# Veri dosyaları
+data/raw/
