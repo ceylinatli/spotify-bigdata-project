@@ -1,0 +1,143 @@
+networks:
+  spotify-net:
+    driver: bridge # Tüm servisler aynı sanal ağda haberleşir
+
+volumes:
+  delta-lake-data: # Bronze/Silver/Gold katmanları için kalıcı depolama
+  mlflow-data:
+    # MLflow deney kayıtları için kalıcı depolama
+
+services:
+
+  # ZOOKEEpER  — Kafka koordinasyon servisi
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    hostname: zookeeper
+    ports:
+      - "2181:2181" # Zookeeper varsayılan portu
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - spotify-net
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "echo ruok | nc localhost 2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  #  KAFKA BROKER  — Mesaj kuyruğu servisi
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    hostname: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy # Zookeeper hazır olmadan başlamaz
+    ports:
+      - "9092:9092" # Dış bağlantı için (host makineden erişim)
+      - "29092:29092" # Docker iç ağından erişim
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      # İki listener: biri konteyner içi, biri host makinesi için
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 # Tek broker olduğu için 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true" # Topic otomatik oluşturulsun
+      KAFKA_LOG_RETENTION_HOURS: 24 # Mesajlar 24 saat saklansın
+      KAFKA_MESSAGE_MAX_BYTES: 10485760 # Maksimum mesaj boyutu: 10MB
+    networks:
+      - spotify-net
+    healthcheck:
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  #  SPARK (Jupyter + PySpark) — Master & Worker bir arada
+  #  jupyter/pyspark-notebook: Spark 3.5 + Jupyter + PySpark dahil
+
+  spark-master:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    container_name: spark-master
+    hostname: spark-master
+    # jupyter/pyspark-notebook varsayılan start komutu Jupyter'i başlatır
+    environment:
+      - JUPYTER_TOKEN='' # Şifresiz giriş (eski sürümler için)
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=local[*] # Local modda Spark çalışır
+    command: start-notebook.sh --ServerApp.token='' --ServerApp.password=''
+    ports:
+      - "8888:8888" # Jupyter Notebook / JupyterLab
+    volumes:
+      - ./spark/notebooks:/home/jovyan/notebooks # Notebook dosyaları
+      - ./data:/home/jovyan/data # Ham veri
+      - delta-lake-data:/home/jovyan/delta-lake # Delta Lake depolama
+    networks:
+      - spotify-net
+
+  # spark-worker: Tek konteynerli (local) Spark modunda ayrı worker gerekmez.
+  # Ama gösterim amaçlı ikinci bir Jupyter instance'ı başlatabilirsin.
+  spark-worker:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    container_name: spark-worker
+    hostname: spark-worker
+    depends_on:
+      - spark-master
+    environment:
+      - JUPYTER_TOKEN=''
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=local[*]
+    command: start-notebook.sh --ServerApp.token='' --ServerApp.password=''
+    ports:
+      - "8889:8888" # Worker Jupyter (8889 portunda)
+    volumes:
+      - ./data:/home/jovyan/data
+      - delta-lake-data:/home/jovyan/delta-lake
+    networks:
+      - spotify-net
+
+  #  KAFKA PRODUCER  — Veri üreticisi
+  kafka-producer:
+    build:
+      context: ./kafka/producer # kafka/producer/Dockerfile kullanılır
+      dockerfile: Dockerfile
+    container_name: kafka-producer
+    depends_on:
+      kafka:
+        condition: service_healthy # Kafka hazır olmadan producer başlamaz
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:29092" # Docker iç ağı üzerinden bağlan
+      KAFKA_TOPIC: "spotify-tracks"
+      CSV_PATH: "/data/raw/dataset.csv"
+      MESSAGES_PER_SECOND: "50" # Saniyede gönderilecek mesaj sayısı
+    volumes:
+      - ./data:/data # CSV dosyasına erişim için
+    networks:
+      - spotify-net
+    restart: on-failure # Hata durumunda otomatik yeniden başlat
+
+  #  MLFLOW  — Deney takip sunucusu
+  mlflow:
+    image: python:3.10-slim
+    container_name: mlflow
+    command: >
+      bash -c "pip install mlflow==2.11.0 --quiet &&
+               mlflow server
+               --host 0.0.0.0
+               --port 5000
+               --backend-store-uri /mlflow/mlruns
+               --default-artifact-root /mlflow/artifacts"
+    ports:
+      - "5000:5000" # MLflow Web UI
+    volumes:
+      - mlflow-data:/mlflow # Deney kayıtları kalıcı olarak saklanır
+    networks:
+      - spotify-net
