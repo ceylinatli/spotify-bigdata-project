@@ -1,7 +1,5 @@
-# ─────────────────────────────────────────────────────────────
 #  Spark + Jupyter Dockerfile
 #  Temel imaj: jupyter/pyspark-notebook (Spark 3.5 + PySpark dahil)
-# ─────────────────────────────────────────────────────────────
 
 FROM jupyter/pyspark-notebook:spark-3.5.0
 
@@ -11,7 +9,7 @@ USER root
 # Sadece eksik olan paketleri ekle
 # (matplotlib, seaborn, scikit-learn imajda zaten var — kontrol edilmeden ekleme)
 RUN pip install --no-cache-dir --quiet \
-    delta-spark==4.2.0 \
+    delta-spark==3.2.0 \
     mlflow==2.11.0 \
     kafka-python==2.0.2 \
     findspark==2.0.1
