@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import random
 import uuid
 import pandas as pd
 from datetime import datetime
@@ -32,12 +31,12 @@ def simulate_stream():
     CSV dosyasını okuyarak veri akışını simüle eder ve Kafka'ya gönderir.
     """
     print(f"[{datetime.now()}] Kafka Broker'a bağlanılıyor: {KAFKA_BROKER}")
-    
+
     # Kafka Producer'ı başlatıyoruz
     producer = create_producer()
     print(f"[{datetime.now()}] Producer başarıyla bağlandı. Hedef topic: {TOPIC_NAME}")
-    
-    # Veri setini Pandas ile okuyoruz (Eğer dosya yoksa hata verebilir, try-except eklenebilir)
+
+    # Veri setini Pandas ile okuyoruz
     try:
         df = pd.read_csv(CSV_PATH)
         print(f"[{datetime.now()}] Veri seti yüklendi: {CSV_PATH} ({len(df)} satır)")
@@ -47,12 +46,13 @@ def simulate_stream():
 
     # Gönderim hızı ayarı için iki mesaj arası bekleme süresi
     sleep_time = 1.0 / MESSAGES_PER_SECOND
-    
+
     message_count = 0
-    
+
     # Veri setindeki her bir satır üzerinde dönüyoruz
     for index, row in df.iterrows():
-        # Her mesajda istenilen alanları oluşturuyoruz
+        # Her mesajda tüm alanları oluşturuyoruz
+        # NaN değerler için güvenli tip dönüşümü yapılıyor
         # user_id rastgele UUID olarak üretiliyor (simülasyon amaçlı)
         message = {
             "kafka_timestamp": datetime.utcnow().isoformat(),
@@ -63,33 +63,33 @@ def simulate_stream():
             "artists": row.get("artists", ""),
             "album_name": row.get("album_name", ""),
             "track_genre": row.get("track_genre", ""),
-            "popularity": int(row.get("popularity", 0)),
-            "duration_ms": int(row.get("duration_ms", 0)),
+            "popularity": int(row["popularity"]) if pd.notna(row.get("popularity")) else 0,
+            "duration_ms": int(row["duration_ms"]) if pd.notna(row.get("duration_ms")) else 0,
             "explicit": str(row.get("explicit", "False")),
-            "danceability": float(row.get("danceability", 0)),
-            "energy": float(row.get("energy", 0)),
-            "key": int(row.get("key", 0)),
-            "loudness": float(row.get("loudness", 0)),
-            "mode": int(row.get("mode", 0)),
-            "speechiness": float(row.get("speechiness", 0)),
-            "acousticness": float(row.get("acousticness", 0)),
-            "instrumentalness": float(row.get("instrumentalness", 0)),
-            "liveness": float(row.get("liveness", 0)),
-            "valence": float(row.get("valence", 0)),
-            "tempo": float(row.get("tempo", 0)),
-            "time_signature": int(row.get("time_signature", 0)),
+            "danceability": float(row["danceability"]) if pd.notna(row.get("danceability")) else 0.0,
+            "energy": float(row["energy"]) if pd.notna(row.get("energy")) else 0.0,
+            "key": int(row["key"]) if pd.notna(row.get("key")) else 0,
+            "loudness": float(row["loudness"]) if pd.notna(row.get("loudness")) else 0.0,
+            "mode": int(row["mode"]) if pd.notna(row.get("mode")) else 0,
+            "speechiness": float(row["speechiness"]) if pd.notna(row.get("speechiness")) else 0.0,
+            "acousticness": float(row["acousticness"]) if pd.notna(row.get("acousticness")) else 0.0,
+            "instrumentalness": float(row["instrumentalness"]) if pd.notna(row.get("instrumentalness")) else 0.0,
+            "liveness": float(row["liveness"]) if pd.notna(row.get("liveness")) else 0.0,
+            "valence": float(row["valence"]) if pd.notna(row.get("valence")) else 0.0,
+            "tempo": float(row["tempo"]) if pd.notna(row.get("tempo")) else 0.0,
+            "time_signature": int(row["time_signature"]) if pd.notna(row.get("time_signature")) else 0,
         }
-        
+
         # Mesajı Kafka topic'ine gönderiyoruz
         producer.send(TOPIC_NAME, value=message)
         message_count += 1
-        
+
         # Belirli aralıklarla (örneğin her 500 mesajda bir) ekrana log basıyoruz
         if message_count % 500 == 0:
             print(f"[{datetime.now()}] {message_count} mesaj gönderildi...")
             # Tüm mesajların iletildiğinden emin olmak için buffer'ı temizliyoruz
             producer.flush()
-            
+
         # Gönderim hızını ayarlamak için bekliyoruz
         time.sleep(sleep_time)
 
