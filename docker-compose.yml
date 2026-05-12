@@ -77,6 +77,9 @@ services:
     volumes:
       - ./spark/notebooks:/home/jovyan/notebooks # Notebook dosyaları
       - ./data:/home/jovyan/data # Ham veri
+      - ./dashboard:/home/jovyan/dashboard # Dashboard PNG çıktıları
+      - ./mlruns:/home/jovyan/mlruns # Notebook içi MLflow kayıtları
+      - ./ml_artifacts:/home/jovyan/ml_artifacts # Model ara çıktıları
       - delta-lake-data:/home/jovyan/delta-lake # Delta Lake depolama
     networks:
       - spotify-net
@@ -101,6 +104,9 @@ services:
     volumes:
       - ./spark/notebooks:/home/jovyan/notebooks # Notebook dosyaları
       - ./data:/home/jovyan/data
+      - ./dashboard:/home/jovyan/dashboard
+      - ./mlruns:/home/jovyan/mlruns
+      - ./ml_artifacts:/home/jovyan/ml_artifacts
       - delta-lake-data:/home/jovyan/delta-lake
     networks:
       - spotify-net
