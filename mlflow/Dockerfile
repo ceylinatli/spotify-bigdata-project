@@ -2,7 +2,7 @@
 FROM python:3.10-slim
 
 # MLflow paketini yüklüyoruz
-RUN pip install mlflow==2.11.0 --quiet
+RUN pip install --default-timeout=1000 --retries 5 mlflow==2.11.0
 
 # MLflow varsayılan portu
 EXPOSE 5000
