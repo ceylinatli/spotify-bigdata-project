@@ -31,6 +31,11 @@ delta-lake/gold/
 # ─── MLflow deney kayıtları ──────────────────────
 mlflow/mlruns/
 mlflow/artifacts/
+mlruns/
+ml_artifacts/
+spark-warehouse/
+metastore_db/
+derby.log
 
 # ─── Docker ──────────────────────────────────────
 .dockerignore
