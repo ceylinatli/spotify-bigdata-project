@@ -37,10 +37,11 @@ data/raw/dataset.csv
 > **Not:** `dataset.csv` dosyası büyük olduğu için GitHub'a yüklenmemiştir. `.gitignore` ile hariç tutulmuştur.
 
 **Veri Seti Özellikleri:**
-- 114.000 şarkı, 21 kolon
+- 114.000 şarkı, 21 kolon (orijinal CSV: 20 müzik özelliği + 1 isimsiz index kolonu) — Kafka sonrası 23 alan (+ `kafka_timestamp`, `user_id`, `event_type`)
 - 113 farklı müzik türü (`track_genre`)
-- Sayısal özellikler: `danceability`, `energy`, `loudness`, `tempo`, `speechiness`, `acousticness`, `instrumentalness`, `liveness`, `valence`
-- Kategorik özellikler: `track_genre`, `explicit`, `key`, `mode`, `time_signature`
+- Sayısal özellikler: `popularity`, `duration_ms`, `danceability`, `energy`, `loudness`, `tempo`, `speechiness`, `acousticness`, `instrumentalness`, `liveness`, `valence`, `key`, `mode`, `time_signature`
+- Kategorik/hedef alanlar: `track_genre`, `explicit`
+- Kafka ek alanları: `kafka_timestamp`, `user_id`, `event_type`
 
 ---
 
@@ -79,7 +80,7 @@ Dashboard (11 PNG görsel → dashboard/ klasörü)
 | Apache Kafka | Confluent 7.5.0 | Gerçek zamanlı veri akışı simülasyonu |
 | Apache Zookeeper | Confluent 7.5.0 | Kafka koordinasyon servisi |
 | Apache Spark | 3.5.0 | Structured Streaming + MLlib |
-| Delta Lake | JAR: delta-core 3.2.0 | Bronze/Silver/Gold veri depolama |
+| Delta Lake | `delta-spark_2.12:3.2.0` JAR | Bronze/Silver/Gold veri depolama |
 | MLflow | 2.11.0 | Deney takibi, model loglama |
 | PySpark MLlib | 3.5.0 | 5 sınıflandırma modeli |
 | JupyterLab | pyspark-notebook:spark-3.5.0 | Notebook ortamı |
@@ -152,7 +153,7 @@ spotify-bigdata-project/
 │   │   ├── jupyterlab.png
 │   │   ├── kafka-logs.png
 │   │   └── kafka-producer-logs.png
-│   ├── teknik_rapor.pdf             # Proje teknik raporu
+│   ├── teknik_rapor_spotify.pdf     # Proje teknik raporu
 │   └── spotify_sunum.pptx           # Proje sunumu
 │
 ├── docker-compose.yml               # 6 servis tanımı
@@ -225,7 +226,7 @@ zookeeper      ✅ Up
 kafka          ✅ Up
 spark-master   ✅ Up
 spark-worker   ✅ Up
-kafka-producer ✅ Up
+kafka-producer ✅ Up (simülasyon bitince Exited (0) olması normaldir)
 mlflow         ✅ Up
 ```
 
@@ -300,14 +301,13 @@ Tüm model deneyleri burada listelenmiş olmalı.
 
 | Özellik | Formül | Amaç |
 |---------|--------|------|
-| `energy_danceability_ratio` | `energy / (danceability + 0.0001)` | Enerjik ama az dans edilebilir şarkıları ayırt eder |
-| `loudness_normalized` | `(loudness - min) / (max - min)` | -49.53/+4.53 dB → 0-1 normalizasyon |
+| `energy_danceability_ratio` | `energy / (danceability + 0.0001)` | Enerjik ama az dans edilebilir şarkıları ayırt eder. En yüksek: sleep türü |
+| `loudness_normalized` | `(loudness - min) / (max - min)` | -49.53/+4.53 dB → 0-1 normalizasyon. Ortalama: 0.759 |
 | `tempo_category` | yavaş/orta/hızlı (<100 / 100-140 / >140 BPM) | Tempo sayısalını kategoriye çevirir |
-| `energy_acoustic_contrast` | `energy - acousticness` | Akustik ve sert türleri ayırt eder (en anlamlı özellik) |
-| `dancefloor_score` | `(danceability + valence) / 2` | Dans pisti uyumluluğu skoru |
+| `energy_acoustic_contrast` | `energy - acousticness` | Yüksek değer: metal/rock/grindcore. Düşük değer: sleep/piano/classical. RF önem sıralamasında orta-yüksek katkı sağlar |
+| `dancefloor_score` | `(danceability + valence) / 2` | Dans edilebilirlik ve pozitif duygu tonunu birleştirir. En yüksek: children/kids. En düşük: sleep, show-tunes, romance |
 
-**Gold/features katmanına yazılan:** 89.740 satır, 28 kolon  
-**En anlamlı özellik:** `energy_acoustic_contrast` (-0.73 korelasyonu doğrudan sayısal ifadeye döker)
+**Gold/features katmanına yazılan:** 89.740 satır, 28 kolon
 
 ---
 
@@ -325,14 +325,18 @@ Tüm model deneyleri burada listelenmiş olmalı.
 
 ### Feature Importance (Random Forest)
 
-| Sıra | Özellik | Önem |
-|------|---------|------|
-| 1 | popularity | En yüksek |
-| 2 | instrumentalness | İkinci |
-| 3 | danceability | Üçüncü |
-| 4 | time_signature | Düşük |
-| 5 | mode | Çok düşük |
-| 6 | tempo_category | En düşük |
+| Sıra | Özellik | Önem Skoru |
+|------|---------|------------|
+| 1 | popularity | 0.2417 |
+| 2 | instrumentalness | 0.0925 |
+| 3 | danceability | 0.0909 |
+| 4 | acousticness | 0.0899 |
+| 5 | speechiness | 0.0875 |
+| 6 | dancefloor_score | 0.0873 |
+| 7 | energy_acoustic_contrast | 0.0800 |
+| 8 | key | 0.0049 |
+| 9 | mode | 0.0033 |
+| 10 | time_signature | 0.0027 |
 
 ### En Çok Karışan Türler (Confusion Matrix)
 
@@ -377,13 +381,14 @@ Loglanan bilgiler: `log_param()`, `log_metric()`, `log_artifact()`, `mlflow.spar
 
 | Zorluk | Çözüm |
 |--------|-------|
-| Kafka ve Delta Lake JAR paketleri eksikti | `spark.jars.packages` ile spark-sql-kafka ve delta-core JAR eklendi |
+| Kafka ve Delta Lake JAR paketleri eksikti | `spark.jars.packages` ile spark-sql-kafka ve `delta-spark_2.12:3.2.0` JAR eklendi |
 | `pip install delta-spark` ile JAR çakışıyordu | pip paketi Dockerfile'dan kaldırıldı, yalnızca JAR kullanıldı |
 | Docker volume izin hatası (root/jovyan) | Dockerfile'a `mkdir` ve `chown` komutları eklendi |
 | ENV satırı çok satıra bölününce `NullPointerException` | ENV tek satır olarak yazıldı |
 | `explicit` kolonu `Boolean` yerine `String` geldi | `when("True", 1).when("False", 0)` ile dönüştürüldü |
 | Spark bellek hatası (113 tür, yüksek bellek) | Model parametreleri hafifletildi, örnekleme yapıldı |
 | Delta Lake `timestamp` kolon adı uyumsuzluğu | `kafka_timestamp` ve `timestamp` kolonlarının ikisi de desteklendi |
+| MLflow artifact kaydında `/mlflow` izin hatası | MLflow Dockerfile'a `--serve-artifacts` ve `--artifacts-destination /mlflow/artifacts` eklendi |
 
 ---
 
