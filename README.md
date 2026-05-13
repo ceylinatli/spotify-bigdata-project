@@ -154,7 +154,7 @@ spotify-bigdata-project/
 │   │   ├── kafka-logs.png
 │   │   └── kafka-producer-logs.png
 │   ├── teknik_rapor_spotify.pdf     # Proje teknik raporu
-│   └── spotify_sunum.pptx           # Proje sunumu
+│   └── grup3_sunum.pptx             # Proje sunumu
 │
 ├── docker-compose.yml               # 6 servis tanımı
 ├── .gitignore
@@ -410,7 +410,7 @@ Loglanan bilgiler: `log_param()`, `log_metric()`, `log_artifact()`, `mlflow.spar
 | Dosya | Açıklama |
 |-------|----------|
 | `docs/teknik_rapor.pdf` | 8 bölümlü teknik rapor |
-| `docs/spotify_sunum.pptx` | 13 slaytlık proje sunumu |
+| `docs/spotify_sunum.pptx` | 20 slaytlık proje sunumu |
 | `docs/screenshots/` | Docker ve servis ekran görüntüleri |
 
 ---
