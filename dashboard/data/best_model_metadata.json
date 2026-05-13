@@ -1,5 +1,0 @@
-{
-  "best_model_name": "Random Forest Classifier",
-  "selection_metric": "f1_weighted",
-  "best_f1_weighted": 0.546890992514049
-}
