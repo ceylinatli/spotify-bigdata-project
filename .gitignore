@@ -1,0 +1,60 @@
+# ─── Python & IDE ────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+.venv/
+venv/
+env/
+
+# ─── Jupyter Notebook ────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ─── Veri dosyaları (büyük dosyalar GitHub'a gitmesin) ───
+data/raw/*.csv
+data/raw/*.parquet
+data/raw/*.json
+data/processed/
+
+# ─── Delta Lake verileri ─────────────────────────
+delta-lake/bronze/
+delta-lake/silver/
+delta-lake/gold/
+
+# ─── MLflow deney kayıtları ──────────────────────
+mlflow/mlruns/
+mlflow/artifacts/
+mlruns/
+ml_artifacts/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# ─── Docker ──────────────────────────────────────
+.dockerignore
+
+# ─── İşletim sistemi dosyaları ───────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE dosyaları ───────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─── Log dosyaları ───────────────────────────────
+*.log
+logs/
+
+# ─── Dashboard çıktıları (isteğe bağlı commit edilebilir) ───
+# dashboard/*.png
+# dashboard/*.html
