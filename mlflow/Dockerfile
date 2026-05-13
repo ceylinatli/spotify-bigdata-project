@@ -12,4 +12,5 @@ CMD ["mlflow", "server", \
      "--host", "0.0.0.0", \
      "--port", "5000", \
      "--backend-store-uri", "/mlflow/mlruns", \
-     "--default-artifact-root", "/mlflow/artifacts"]
+     "--serve-artifacts", \
+     "--artifacts-destination", "/mlflow/artifacts"]
